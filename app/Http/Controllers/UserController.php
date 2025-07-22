@@ -55,16 +55,16 @@ class UserController extends Controller
         ]);
 
         // Generate OTP
-        $otp = rand(100000, 999999);
+        $otp =  123456;
         $user->otp = $otp;
         $user->otp_created_at = getCurrentDateTimeIndia();
         $user->save();
 
         // Send OTP email
-        Mail::raw("Your OTP for registration is: $otp", function ($message) use ($user) {
-            $message->to($user->email)
-                    ->subject('Registration OTP');
-        });
+        // Mail::raw("Your OTP for registration is: $otp", function ($message) use ($user) {
+        //     $message->to($user->email)
+        //             ->subject('Registration OTP');
+        // });
 
         return response()->json([
             'status' => true,
@@ -96,15 +96,16 @@ class UserController extends Controller
         }
 
         // Generate OTP
-        $otp = rand(100000, 999999);
+        // $otp = rand(100000, 999999);
+        $otp =  123456;
         $user->otp = $otp;
         $user->otp_created_at = getCurrentDateTimeIndia();
         $user->save();
         // Send OTP email
-        Mail::raw("Your OTP for login is: $otp", function ($message) use ($user) {
-            $message->to($user->email)
-                    ->subject('Login OTP');
-        });
+        // Mail::raw("Your OTP for login is: $otp", function ($message) use ($user) {
+        //     $message->to($user->email)
+        //             ->subject('Login OTP');
+        // });
 
         return response()->json([
             'status'=> true,
@@ -164,7 +165,6 @@ class UserController extends Controller
         if ($contentTypeCheck) {
             return $contentTypeCheck;
         }
-
         return response()->json($request->user());
     }
 
