@@ -7,12 +7,35 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
+use Carbon\Carbon;
 
 class UserController extends Controller
 {
+    /**
+     * Check if the request content type is application/json.
+     * Return a JSON error response with 415 status if not.
+     */
+    private function checkJsonContentType(Request $request)
+    {
+        if ($request->header('Content-Type') !== 'application/json') {
+            return response()->json([
+                'status' => false,
+                'message' => 'Content-Type must be application/json'
+            ], 415);
+        }
+        return null;
+    }
+
     // Register
     public function register(Request $request)
     {
+        $contentTypeCheck = $this->checkJsonContentType($request);
+        if ($contentTypeCheck) {
+            return $contentTypeCheck;
+        }
+
         $validator = Validator::make($request->all(), [
             'name'     => 'required|string|max:255',
             'email'    => 'required|email|unique:users',
@@ -31,34 +54,104 @@ class UserController extends Controller
             'role' => 2
         ]);
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+        // Generate OTP
+        $otp = rand(100000, 999999);
+        $user->otp = $otp;
+        $user->otp_created_at = getCurrentDateTimeIndia();
+        $user->save();
+
+        // Send OTP email
+        Mail::raw("Your OTP for registration is: $otp", function ($message) use ($user) {
+            $message->to($user->email)
+                    ->subject('Registration OTP');
+        });
 
         return response()->json([
-            'status' => true,  
-            'message' => 'Registration successful',
-            'user'    => $user,
-            'token'   => $token,
+            'status' => true,
+            'otpRequired' => true,  
+            'message' => 'Registration successful, OTP sent to your email',
+            'otp' => $otp,
+            'number' => $request->number,
         ], 201);
     }
 
     // Login
     public function login(Request $request)
     {
-        $request->validate([
-            'email'    => 'required|email',
-            'password' => 'required',
-        ]);
-
-        $user = User::where('email', $request->email)->first();
-
-        if (!$user || !Hash::check($request->password, $user->password)) {
-            return response()->json(['message' => 'Invalid credentials'], 401);
+        $contentTypeCheck = $this->checkJsonContentType($request);
+        if ($contentTypeCheck) {
+            return $contentTypeCheck;
         }
 
+        $request->validate([
+            'email_or_number' => 'required|string',
+        ]);
+
+        $user = User::where('email', $request->email_or_number)
+                    ->orWhere('number', $request->email_or_number)
+                    ->first();
+
+        if (!$user) {
+            return response()->json(['status' => false, 'message' => 'User not found'], 404);
+        }
+
+        // Generate OTP
+        $otp = rand(100000, 999999);
+        $user->otp = $otp;
+        $user->otp_created_at = getCurrentDateTimeIndia();
+        $user->save();
+        // Send OTP email
+        Mail::raw("Your OTP for login is: $otp", function ($message) use ($user) {
+            $message->to($user->email)
+                    ->subject('Login OTP');
+        });
+
+        return response()->json([
+            'status'=> true,
+            'otpRequired' => true, 
+            'message' => 'OTP sent to your email',
+            'otp' => $otp,
+            'number' => $user->number,
+        ]);
+    }
+
+    // Verify OTP
+    public function verifyOtp(Request $request)
+    {
+        $contentTypeCheck = $this->checkJsonContentType($request);
+        if ($contentTypeCheck) {
+            return $contentTypeCheck;
+        }
+
+        $request->validate([
+            'number' => 'required|string',
+            'otp'   => 'required|digits:6',
+        ]);
+
+        $user = User::where('number', $request->number)->first();
+
+        if (!$user) {
+            return response()->json(['message' => 'User not found'], 404);
+        }
+
+        // Check OTP validity (assuming otp and otp_created_at columns exist)
+        $otpValidDuration = 10; // minutes
+        $otpCreated = Carbon::parse($user->otp_created_at);
+        if (!$user->otp || $user->otp != $request->otp || !$otpCreated || $otpCreated->diffInMinutes(now()) > $otpValidDuration) {
+            return response()->json(['message' => 'Invalid or expired OTP'], 401);
+        }
+
+        // OTP is valid, clear OTP fields
+        $user->otp = null;
+        $user->otp_created_at = null;
+        $user->save();
+
+        // Create auth token
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'message' => 'Login successful',
+            'status' => true,
+            'message' => 'OTP verified successfully',
             'user'    => $user,
             'token'   => $token,
         ]);
@@ -67,6 +160,11 @@ class UserController extends Controller
     // Get Profile (Authenticated)
     public function profile(Request $request)
     {
+        $contentTypeCheck = $this->checkJsonContentType($request);
+        if ($contentTypeCheck) {
+            return $contentTypeCheck;
+        }
+
         return response()->json($request->user());
     }
 
