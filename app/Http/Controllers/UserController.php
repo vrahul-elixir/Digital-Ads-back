@@ -149,6 +149,11 @@ class UserController extends Controller
 
         // Create auth token
         $token = $user->createToken('auth_token')->plainTextToken;
+       
+        $user = ['id' => $user->id, 
+                 'name' => $user->name,
+                 'email' => $user->email,
+                 'number' => $user->number];
 
         return response()->json([
             'status' => true,
