@@ -21,4 +21,5 @@ Route::middleware(['auth:sanctum',  StartSession::class])->group(function () {
 
     Route::get('/plan-info', [MainController::class, 'GetPlan']);
     Route::get('/single-plan-detail', [MainController::class, 'GetPlanByName']);
+    Route::post('/store-payment', [MainController::class, 'StorePayment']);
 });

@@ -64,28 +64,25 @@ if (!function_exists('removeSpecialCharacters')) {
     }
 }
 
+if (!function_exists('addDaysToCurrentDate')) {
+    function addDaysToCurrentDate($duration, $price_base)
+    {
+        date_default_timezone_set('Asia/Kolkata');
+        $currentDate = new DateTime();
 
-
-if (!function_exists('display_errors')) {
-    function display_errors($errors) {
-        if ($errors->any()) {
-            $output = '<div class="alert alert-danger alert-dismissible fade show" role="alert">';
-            foreach ($errors->all() as $error) {
-                $output .= $error . '<br>';
-            }
-            $output .= '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>';
-            $output .= '</div>';
-            return $output;
+        if ($price_base == 1) {
+            // Monthly: add duration * 30 days
+            $daysToAdd = $duration * 30;
+        } elseif ($price_base == 2) {
+            // Yearly: add duration * 365 days
+            $daysToAdd = $duration * 365;
+        } else {
+            // Default: no addition
+            $daysToAdd = 0;
         }
-    }
-}
 
-if (!function_exists('display_message')) {
-    function display_message($message) {
-        $output = '<div class="alert alert-success alert-dismissible fade show" role="alert">
-                '.$message.'<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>';   
-          return $output;
+        $currentDate->modify("+{$daysToAdd} days");
+        return $currentDate->format('Y-m-d H:i:s');
     }
 }
 ?>

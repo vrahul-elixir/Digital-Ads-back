@@ -62,11 +62,7 @@ class MainController extends Controller
             ], 400);
         }
 
-        $plan = DB::table('plans')
-            ->where('name', $planName)
-            ->where('status', 0)
-            ->first();
-
+        $plan = DB::table('plans')->where('name', $planName)->where('status', 0)->first();
         if (!$plan) {
             return response()->json([
                 'status' => false,
@@ -78,5 +74,97 @@ class MainController extends Controller
             'status' => true,
             'plan_info' => $plan
         ], 200);
+    }
+
+    public function StorePayment(Request $request)
+    {
+        if (!$this->isJsonRequest($request)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Content-Type must be application/json'
+            ], 415);
+        }
+
+        // Validate required inputs
+        $validated = $request->validate([
+            'plan_id' => 'required|integer',
+            'amount' => 'required|numeric',
+            'payment_id' => 'required|string',
+            'order_id' => 'required|string',
+            'signature' => 'required|string',
+            'user_info' => 'required|array',
+        ]);
+
+        $plan = DB::table('plans')->where('id', $validated['plan_id'])->where('status', 0)->first();
+        if (!$plan) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Invalid or inactive plan'
+            ], 400);
+        }
+
+        $end_date = addDaysToCurrentDate($plan->duration,$plan->price_base);
+    
+        $user = $request->user();
+        if (!$user) {
+            return response()->json([
+                'status' => false,
+                'message' => 'User not authenticated'
+            ], 401);
+        }
+
+        $payment_array = [
+            'user_id' => $user->id,
+            'amount' => $validated['amount'],
+            'payment_id' => $validated['payment_id'],
+            'status' => '1', // Success
+            'payment_mode' => 'razorpay',
+            'transaction_id' => $validated['order_id'],
+            'currency' => 'inr',
+            'transaction_date' => getCurrentDateTimeIndia(),
+            'transaction_detail' => json_encode([
+                'order_id' => $validated['order_id'],
+                'payment_id' => $validated['payment_id'],
+                'amount' => $validated['amount'],
+                'signature' => $validated['signature']
+            ])
+        ];
+
+        /** Insert payment details */
+        $payment = DB::table('payments')->insertGetId($payment_array); 
+        if (!$payment) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to save payment'
+            ], 500);
+        }
+
+        $user_array = [
+            'user_id' => $user->id,
+            'plan_id' => $validated['plan_id'],
+            'plan_name' => $plan->name,
+            'price' => $plan->price,
+            'start_date' => getCurrentDateTimeIndia(),
+            'expiry_date' => $end_date,
+            'payment_id' => $payment,
+            'details' => json_encode($validated['user_info']),
+            'status' => 0,
+            'update_by' => 0,
+            'update_date' => getCurrentDateTimeIndia()
+        ];
+
+        /** Insert user plan details */
+        $user_plan = DB::table('user_plans')->insertGetId($user_array); 
+        if ($user_plan) {
+            return response()->json([
+                'status' => true,
+                'message' => "Successfully saved"
+            ], 200);
+        } else {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to save user plan'
+            ], 500);
+        }
     }
 }
