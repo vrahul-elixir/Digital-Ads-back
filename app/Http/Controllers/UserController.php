@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 
@@ -150,6 +151,14 @@ class UserController extends Controller
         // Create auth token
         $token = $user->createToken('auth_token')->plainTextToken;
        
+        // User plan
+        $plan = false;
+        $UserPlan = DB::table('user_plans')->select('plan_id', 'plan_name', 'start_date', 'expiry_date')->where(['user_id' => $user->id, 'status' => 0])->get(); 
+        if($UserPlan->count() > 0)
+        {
+            $plan = $UserPlan;
+        }
+        
         $user = ['id' => $user->id, 
                  'name' => $user->name,
                  'email' => $user->email,
@@ -158,8 +167,9 @@ class UserController extends Controller
         return response()->json([
             'status' => true,
             'message' => 'OTP verified successfully',
-            'user'    => $user,
+            'user'  => $user,
             'token'   => $token,
+            'plan' => $plan,
         ]);
     }
 
