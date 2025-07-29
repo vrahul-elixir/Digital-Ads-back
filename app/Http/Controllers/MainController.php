@@ -167,4 +167,92 @@ class MainController extends Controller
             ], 500);
         }
     }
+
+    public function storeBusinessInfo(Request $request)
+    {
+        if (!$this->isJsonRequest($request)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Content-Type must be application/json'
+            ], 415);
+        }
+
+        $user = $request->user();
+        if (!$user) {
+            return response()->json([
+                'status' => false,
+                'message' => 'User not authenticated'
+            ], 401);
+        }
+
+        $GetBusinessInfo = DB::table('user_business_info')->where('user_id',$user->id)->first(); 
+
+        try {
+            $validated = $request->validate([
+                'company_name' => 'required|string|max:255',
+                'industry' => 'nullable|string|max:255',
+                'website_url' => 'nullable|url|max:255',
+                'phone_number' => 'nullable|string|max:20',
+                'email_id' => 'nullable|email|max:255',
+                'company_description' => 'nullable|string',
+                'address' => 'nullable|string',
+                'state' => 'nullable|string|max:100',
+                'city' => 'nullable|string|max:100',
+                'zip_code' => 'nullable|string|max:20',
+                'country' => 'nullable|string|max:100',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Validation errors',
+                'errors' => $e->errors()
+            ], 422);
+        }
+
+        $data = [
+            'user_id' => $user->id,
+            'company_name' => $validated['company_name'],
+            'industry' => $validated['industry'] ?? null,
+            'website_url' => $validated['website_url'] ?? null,
+            'phone_number' => $validated['phone_number'] ?? null,
+            'email_id' => $validated['email_id'] ?? null,
+            'company_description' => $validated['company_description'] ?? null,
+            'address' => $validated['address'] ?? null,
+            'state' => $validated['state'] ?? null, 
+            'city' => $validated['city'] ?? null,
+            'zip_code' => $validated['zip_code'] ?? null,
+            'country' => $validated['country'] ?? null,
+            'update_datetime' => getCurrentDateTimeIndia(),
+        ];
+
+        
+        if(isset($GetBusinessInfo->id) && !empty($GetBusinessInfo->id))
+        {
+           $updated = DB::table('user_business_info')
+            ->where('user_id', $user->id)
+            ->update($data);
+            if ($updated) {
+            return response()->json([
+                'status' => true,
+                'message' => 'Business info updated successfully'
+                ], 200);
+            }  
+        }
+        else
+        {
+           $inserted = DB::table('user_business_info')->insert($data);
+            if ($inserted) {
+            return response()->json([
+                'status' => true,
+                'message' => 'Business info stored successfully'
+            ], 200);
+            }   
+        }
+
+        return response()->json([
+            'status' => false,
+            'message' => 'Failed to store business info'
+            ], 500);
+
+    }    
 }
