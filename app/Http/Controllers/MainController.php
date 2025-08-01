@@ -155,9 +155,18 @@ class MainController extends Controller
 
         /** Insert user plan details */
         $user_plan = DB::table('user_plans')->insertGetId($user_array); 
+
+        $plan = false;
+        $UserPlan = DB::table('user_plans')->select('plan_id', 'plan_name', 'start_date', 'expiry_date')->where(['user_id' => $user->id, 'status' => 0])->orderBy('id', 'desc')->get(); 
+        if($UserPlan->count() > 0)
+        {
+            $plan = $UserPlan;
+        }
+        
         if ($user_plan) {
             return response()->json([
                 'status' => true,
+                'plan' => $plan,
                 'message' => "Successfully saved"
             ], 200);
         } else {

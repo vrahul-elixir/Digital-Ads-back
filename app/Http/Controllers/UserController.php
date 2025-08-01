@@ -153,7 +153,7 @@ class UserController extends Controller
        
         // User plan
         $plan = false;
-        $UserPlan = DB::table('user_plans')->select('plan_id', 'plan_name', 'start_date', 'expiry_date')->where(['user_id' => $user->id, 'status' => 0])->get(); 
+        $UserPlan = DB::table('user_plans')->select('plan_id', 'plan_name', 'start_date', 'expiry_date')->where(['user_id' => $user->id, 'status' => 0])->orderBy('id', 'desc')->get(); 
         if($UserPlan->count() > 0)
         {
             $plan = $UserPlan;
