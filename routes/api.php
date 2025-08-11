@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Session\Middleware\StartSession;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\AdminController;
 use App\Http\Controllers\MainController;
 use App\Http\Controllers\Api\AppController;
 
@@ -12,15 +13,26 @@ Route::middleware('throttle:5,1')->post('/login', [UserController::class, 'login
 Route::middleware('throttle:5,1')->post('/register', [UserController::class, 'register']);
 Route::middleware('throttle:5,1')->post('/verify-otp', [UserController::class, 'verifyOtp']);
 
+// Admin routes
+Route::middleware('throttle:5,1')->post('/admin/login', [AdminController::class, 'adminLogin']);
 
 // Authenticated & Session-enabled routes
 Route::middleware(['auth:sanctum',  StartSession::class])->group(function () {
     Route::get('/profile', [UserController::class, 'profile']);
     Route::get('/logout', [UserController::class, 'logout']);
 
-
-    Route::get('/plan-info', [MainController::class, 'GetPlan']);
-    Route::get('/single-plan-detail', [MainController::class, 'GetPlanByName']);
+    // Route::get('/plan-info', [MainController::class, 'GetPlan']);
+    // Route::get('/single-plan-detail', [MainController::class, 'GetPlanByName']);
     Route::post('/store-payment', [MainController::class, 'StorePayment']);
     Route::post('/store-business-info', [MainController::class, 'storeBusinessInfo']);
+
+    // Admin authenticated routes
+    Route::get('/admin/profile', [AdminController::class, 'adminProfile']);
+    Route::get('/admin/logout', [AdminController::class, 'adminLogout']);
+    
+    // Plan management routes
+    Route::post('/plans', [AdminController::class, 'storePlan']);
+    Route::get('/plans', [AdminController::class, 'getPlans']);
+    Route::get('/plans/{id}', [AdminController::class, 'getPlanById']);
+    Route::delete('/plans/{id}', [AdminController::class, 'deletePlan']);
 });
