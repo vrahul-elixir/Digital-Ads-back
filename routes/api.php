@@ -21,8 +21,8 @@ Route::middleware(['auth:sanctum',  StartSession::class])->group(function () {
     Route::get('/profile', [UserController::class, 'profile']);
     Route::get('/logout', [UserController::class, 'logout']);
 
-    // Route::get('/plan-info', [MainController::class, 'GetPlan']);
-    // Route::get('/single-plan-detail', [MainController::class, 'GetPlanByName']);
+    Route::get('/plan-info', [MainController::class, 'GetPlan']);
+    Route::get('/single-plan-detail', [MainController::class, 'GetPlanByName']);
     Route::post('/store-payment', [MainController::class, 'StorePayment']);
     Route::post('/store-business-info', [MainController::class, 'storeBusinessInfo']);
 
@@ -39,4 +39,10 @@ Route::middleware(['auth:sanctum',  StartSession::class])->group(function () {
     // Subscription management routes
     Route::get('/subscriptions', [AdminController::class, 'getUserSubscriptions']);
     Route::get('/subscriptions/{id}', [AdminController::class, 'getSubscriptionById']);
+    Route::post('/subscriptions/{id}', [AdminController::class, 'updateSubscription']);
+
+    // Payment management routes
+    Route::get('/payments', [AdminController::class, 'getAllPayments']);
+    Route::get('/payments/{id}', [AdminController::class, 'getPaymentById']);
+    Route::get('/payments/stats', [AdminController::class, 'getPaymentStats']);
 });

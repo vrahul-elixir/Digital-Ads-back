@@ -412,4 +412,322 @@ class AdminController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Update subscription information
+     * Allows admin to update subscription details
+     */
+    public function updateSubscription(Request $request, $id)
+    {
+        $contentTypeCheck = $this->checkJsonContentType($request);
+        if ($contentTypeCheck) {
+            return $contentTypeCheck;
+        }
+
+        $validator = Validator::make($request->all(), [
+            'plan_id' => 'nullable|integer|exists:plans,id',
+            'plan_name' => 'nullable|string|max:255',
+            'start_date' => 'nullable|date',
+            'expiry_date' => 'nullable|date|after_or_equal:start_date',
+            'status' => 'nullable|integer|in:0,1,2,3',
+            'update_by' => 'nullable|string|max:255',
+            'notes' => 'nullable|string|max:1000',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            // Check if subscription exists
+            $subscription = \DB::table('user_plans')->where('id', $id)->first();
+            
+            if (!$subscription) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Subscription not found'
+                ], 404);
+            }
+
+            // Prepare update data
+            $updateData = [];
+            
+            if ($request->has('plan_id')) {
+                $updateData['plan_id'] = $request->plan_id;
+                
+                // Update plan_name if plan_id is provided
+                if ($request->plan_id) {
+                    $plan = \DB::table('plans')->where('id', $request->plan_id)->first();
+                    if ($plan) {
+                        $updateData['plan_name'] = $plan->name;
+                    }
+                }
+            }
+            
+            if ($request->has('plan_name')) {
+                $updateData['plan_name'] = $request->plan_name;
+            }
+            
+            if ($request->has('start_date')) {
+                $updateData['start_date'] = $request->start_date;
+            }
+            
+            if ($request->has('expiry_date')) {
+                $updateData['expiry_date'] = $request->expiry_date;
+            }
+            
+            if ($request->has('status')) {
+                $updateData['status'] = $request->status;
+            }
+            
+            if ($request->has('update_by')) {
+                $updateData['update_by'] = $request->update_by;
+            } else {
+                // Set update_by to current admin if authenticated
+                $admin = $request->user();
+                if ($admin && $admin->role == 8) {
+                    $updateData['update_by'] = $admin->name;
+                }
+            }
+            
+            // Always update the update_date
+            $updateData['update_date'] = getCurrentDateTimeIndia();
+
+            // Perform the update
+            $updated = \DB::table('user_plans')
+                ->where('id', $id)
+                ->update($updateData);
+
+            if ($updated) {
+                // Fetch the updated subscription
+                $updatedSubscription = \DB::table('user_plans')
+                    ->leftJoin('users', 'user_plans.user_id', '=', 'users.id')
+                    ->leftJoin('payments', 'user_plans.payment_id', '=', 'payments.id')
+                    ->select(
+                        'user_plans.id',
+                        'user_plans.user_id',
+                        'user_plans.plan_id',
+                        'user_plans.plan_name',
+                        'user_plans.start_date',
+                        'user_plans.expiry_date',
+                        'payments.status as payments_status',
+                        'payments.amount',
+                        'payments.currency',
+                        'user_plans.status',
+                        'user_plans.update_by',
+                        'user_plans.update_date',
+                        'users.name as user_name',
+                        'users.email as user_email',
+                        'users.number as user_number'
+                    )
+                    ->where('user_plans.id', $id)
+                    ->first();
+
+                return response()->json([
+                    'status' => true,
+                    'message' => 'Subscription updated successfully',
+                    'data' => $updatedSubscription
+                ]);
+            } else {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'No changes made to subscription'
+                ], 200);
+            }
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to update subscription',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get all payment information
+     * Returns all payments from payments table with complete details
+     */
+    public function getAllPayments(Request $request)
+    {
+        try {
+            $query = \DB::table('payments')
+                ->leftJoin('users', 'payments.user_id', '=', 'users.id')
+                ->select(
+                    'payments.id',
+                    'payments.user_id',
+                    'payments.amount',
+                    'payments.payment_id',
+                    'payments.status',
+                    'payments.transaction_id',
+                    'payments.transaction_date',
+                    'payments.transaction_detail',
+                    'payments.transaction_type',
+                    'payments.payment_mode',
+                    'payments.currency',
+                    'payments.updated_datetime',
+                    'users.name as user_name',
+                    'users.email as user_email',
+                    'users.number as user_number'
+                );
+
+            // Filter by user_id if provided
+            if ($request->has('user_id')) {
+                $query->where('payments.user_id', $request->user_id);
+            }
+
+            // Filter by status if provided
+            if ($request->has('status')) {
+                $query->where('payments.status', $request->status);
+            }
+
+            // Filter by payment_mode if provided
+            if ($request->has('payment_mode')) {
+                $query->where('payments.payment_mode', $request->payment_mode);
+            }
+
+            // Filter by transaction_type if provided
+            if ($request->has('transaction_type')) {
+                $query->where('payments.transaction_type', $request->transaction_type);
+            }
+
+            // Filter by date range if provided
+            if ($request->has('start_date') && $request->has('end_date')) {
+                $query->whereBetween('payments.transaction_date', [$request->start_date, $request->end_date]);
+            }
+
+            // Search by transaction_id or payment_id
+            if ($request->has('search')) {
+                $search = $request->search;
+                $query->where(function($q) use ($search) {
+                    $q->where('payments.transaction_id', 'like', "%{$search}%")
+                      ->orWhere('payments.payment_id', 'like', "%{$search}%")
+                      ->orWhere('users.name', 'like', "%{$search}%")
+                      ->orWhere('users.email', 'like', "%{$search}%");
+                });
+            }
+
+            // Pagination
+            $perPage = $request->has('per_page') ? (int)$request->per_page : 20;
+            $page = $request->has('page') ? (int)$request->page : 1;
+            
+            $payments = $query->orderBy('payments.updated_datetime', 'desc')
+                ->paginate($perPage, ['*'], 'page', $page);
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Payments retrieved successfully',
+                'data' => $payments->items(),
+                'pagination' => [
+                    'current_page' => $payments->currentPage(),
+                    'per_page' => $payments->perPage(),
+                    'total' => $payments->total(),
+                    'last_page' => $payments->lastPage(),
+                    'from' => $payments->firstItem(),
+                    'to' => $payments->lastItem()
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to retrieve payments',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get single payment by ID
+     * Returns detailed payment information for a specific payment
+     */
+    public function getPaymentById(Request $request, $id)
+    {
+        try {
+            $payment = \DB::table('payments')
+                ->leftJoin('users', 'payments.user_id', '=', 'users.id')
+                ->select(
+                    'payments.id',
+                    'payments.user_id',
+                    'payments.amount',
+                    'payments.payment_id',
+                    'payments.status',
+                    'payments.transaction_id',
+                    'payments.transaction_date',
+                    'payments.transaction_detail',
+                    'payments.transaction_type',
+                    'payments.payment_mode',
+                    'payments.currency',
+                    'payments.updated_datetime',
+                    'users.name as user_name',
+                    'users.email as user_email',
+                    'users.number as user_number'
+                )
+                ->where('payments.id', $id)
+                ->first();
+
+            if (!$payment) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Payment not found'
+                ], 404);
+            }
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Payment retrieved successfully',
+                'data' => $payment
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to retrieve payment',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get payment statistics
+     * Returns summary statistics for payments
+     */
+    public function getPaymentStats(Request $request)
+    {
+        try {
+            $query = \DB::table('payments');
+
+            // Filter by date range if provided
+            if ($request->has('start_date') && $request->has('end_date')) {
+                $query->whereBetween('transaction_date', [$request->start_date, $request->end_date]);
+            }
+
+            $stats = [
+                'total_payments' => $query->count(),
+                'total_amount' => $query->sum('amount'),
+                'successful_payments' => $query->where('status', '1')->count(),
+                'pending_payments' => $query->where('status', '0')->count(),
+                'failed_payments' => $query->where('status', '1')->count(),
+                'average_amount' => $query->avg('amount'),
+                'total_amount_successful' => $query->where('status', '1')->sum('amount')
+            ];
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Payment statistics retrieved successfully',
+                'data' => $stats
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to retrieve payment statistics',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

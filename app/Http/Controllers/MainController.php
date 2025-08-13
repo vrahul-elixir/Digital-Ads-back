@@ -148,7 +148,7 @@ class MainController extends Controller
             'expiry_date' => $end_date,
             'payment_id' => $payment,
             'details' => json_encode($validated['user_info']),
-            'status' => 0,
+            'status' => 1, // Active this plan
             'update_by' => 0,
             'update_date' => getCurrentDateTimeIndia()
         ];
