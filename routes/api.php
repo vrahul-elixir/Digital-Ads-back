@@ -35,4 +35,8 @@ Route::middleware(['auth:sanctum',  StartSession::class])->group(function () {
     Route::get('/plans', [AdminController::class, 'getPlans']);
     Route::get('/plans/{id}', [AdminController::class, 'getPlanById']);
     Route::delete('/plans/{id}', [AdminController::class, 'deletePlan']);
+
+    // Subscription management routes
+    Route::get('/subscriptions', [AdminController::class, 'getUserSubscriptions']);
+    Route::get('/subscriptions/{id}', [AdminController::class, 'getSubscriptionById']);
 });

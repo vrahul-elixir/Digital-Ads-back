@@ -173,19 +173,14 @@ class AdminController extends Controller
             'currency' => $request->currency ?? 'USD',
             'price_base' => $request->price_base ?? null,
             'duration' => $request->duration ?? null,
-            'features' => json_encode($request->features ?? []),
-            'is_popular' => $request->isPopular ?? false,
-            'is_current' => $request->isCurrent ?? false,
+            'features' => json_encode($request->features ?? null),
+            'is_popular' => $request->is_popular ?? false,
+            'is_current' => $request->is_current ?? false,
             'update_by' => $request->update_by ?? null,
             'status' => $request->status ?? 0,
             'date_time' => getCurrentDateTimeIndia()
         ];
 
-       
- return response()->json([
-                        'status' => false,
-                        'message' => json_encode($planData)
-                    ], 404);
         try {
             if ($request->has('id') && $request->id) {
                 // Update existing plan
@@ -301,6 +296,118 @@ class AdminController extends Controller
             return response()->json([
                 'status' => false,
                 'message' => 'Failed to delete plan',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get user subscriptions information
+     * Returns all subscriptions from user_plans table
+     */
+    public function getUserSubscriptions(Request $request)
+    {
+        try {
+            $query = \DB::table('user_plans')
+                ->leftJoin('users', 'user_plans.user_id', '=', 'users.id')
+                ->leftJoin('payments', 'user_plans.payment_id', '=', 'payments.id')
+                ->select(
+                    'user_plans.id',
+                    'user_plans.user_id',
+                    'user_plans.plan_id',
+                    'user_plans.plan_name',
+                    'user_plans.start_date',
+                    'user_plans.expiry_date',
+                    'payments.status as payments_status',
+                    'payments.amount',
+                    'payments.currency',
+                    'user_plans.status',
+                    'user_plans.update_by',
+                    'user_plans.update_date',
+                    'users.name as user_name',
+                    'users.email as user_email',
+                    'users.number as user_number'
+                );
+
+            // Filter by user_id if provided
+            if ($request->has('user_id')) {
+                $query->where('user_plans.user_id', $request->user_id);
+            }
+
+            // Filter by status if provided
+            if ($request->has('status')) {
+                $query->where('user_plans.status', $request->status);
+            }
+
+            // Filter by active subscriptions (not expired)
+            if ($request->has('active') && $request->active == 'true') {
+                $query->where('user_plans.expiry_date', '>', now());
+            }
+
+            $subscriptions = $query->orderBy('user_plans.update_date', 'desc')->get();
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Subscriptions retrieved successfully',
+                'data' => $subscriptions,
+                'total' => $subscriptions->count()
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to retrieve subscriptions',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get single subscription by ID
+     */
+    public function getSubscriptionById(Request $request, $id)
+    {
+        try {
+            $subscription = \DB::table('user_plans')
+                ->leftJoin('users', 'user_plans.user_id', '=', 'users.id')
+                ->leftJoin('payments', 'user_plans.user_id', '=', 'payments.user_id')
+                ->select(
+                    'user_plans.id',
+                    'user_plans.user_id',
+                    'user_plans.plan_id',
+                    'user_plans.plan_name',
+                    'user_plans.start_date',
+                    'user_plans.expiry_date',
+                    'payments.status as payments_status',
+                    'payments.amount',
+                    'payments.currency',
+                    'user_plans.status',
+                    'user_plans.update_by',
+                    'user_plans.update_date',
+                    'users.name as user_name',
+                    'users.email as user_email',
+                    'users.number as user_number'
+                )
+                ->where('user_plans.id', $id)
+                ->first();
+
+            if (!$subscription) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Subscription not found'
+                ], 404);
+            }
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Subscription retrieved successfully',
+                'data' => $subscription
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to retrieve subscription',
                 'error' => $e->getMessage()
             ], 500);
         }
