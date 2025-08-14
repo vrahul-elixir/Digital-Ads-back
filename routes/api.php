@@ -6,6 +6,7 @@ use Illuminate\Session\Middleware\StartSession;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\MainController;
+use App\Http\Controllers\CampaignController;
 use App\Http\Controllers\Api\AppController;
 
 // Rate limit login attempts (5 per minute)
@@ -45,4 +46,15 @@ Route::middleware(['auth:sanctum',  StartSession::class])->group(function () {
     Route::get('/payments', [AdminController::class, 'getAllPayments']);
     Route::get('/payments/{id}', [AdminController::class, 'getPaymentById']);
     Route::get('/payments/stats', [AdminController::class, 'getPaymentStats']);
+
+    // Customer management routes
+    Route::get('/customers', [AdminController::class, 'getCustomerInfo']);
+    Route::get('/customers/{id}', [AdminController::class, 'getSingleCustomer']);
+
+    // Campaign management routes
+    Route::get('/campaigns', [CampaignController::class, 'index']);
+    Route::get('/campaigns/{id}', [CampaignController::class, 'show']);
+    Route::post('/campaigns', [CampaignController::class, 'store']);
+    Route::put('/campaigns/{id}', [CampaignController::class, 'update']);
+    Route::delete('/campaigns/{id}', [CampaignController::class, 'destroy']);
 });

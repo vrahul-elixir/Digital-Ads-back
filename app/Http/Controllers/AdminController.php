@@ -730,4 +730,142 @@ class AdminController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Get Customer Information
+     * Returns customer information from users table with role = 2
+     * and joins with user_business_info table to get business information
+     */
+    public function getCustomerInfo(Request $request)
+    {
+        try {
+            $customers = \DB::table('users')
+                ->leftJoin('user_business_info', 'users.id', '=', 'user_business_info.user_id')
+                ->select(
+                    'users.id',
+                    'users.name',
+                    'users.email',
+                    'users.number',
+                    'user_business_info.company_name',
+                    'user_business_info.industry',
+                    'user_business_info.website_url',
+                    'user_business_info.phone_number',
+                    'user_business_info.company_description',
+                    'user_business_info.address',
+                    'user_business_info.state',
+                    'user_business_info.city',
+                    'user_business_info.zip_code',
+                    'user_business_info.country'
+                )
+                ->where('users.role', 2)
+                ->get();
+
+            return response()->json([
+                'status' => true,
+                'data' => $customers,
+                'total' => $customers->count()
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to retrieve customer information',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get Single Customer Information
+     * Returns detailed information for a single customer by ID
+     * and joins with user_business_info table to get business information
+     */
+    public function getSingleCustomer(Request $request, $id)
+    {
+        try {
+            $customer = \DB::table('users')
+                ->leftJoin('user_business_info', 'users.id', '=', 'user_business_info.user_id')
+                ->select(
+                    'users.id',
+                    'users.name',
+                    'users.email',
+                    'users.number',
+                    'users.email_verified_at',
+                    'users.created_at',
+                    'users.updated_at',
+                    'user_business_info.company_name',
+                    'user_business_info.industry',
+                    'user_business_info.website_url',
+                    'user_business_info.phone_number',
+                    'user_business_info.company_description',
+                    'user_business_info.address',
+                    'user_business_info.state',
+                    'user_business_info.city',
+                    'user_business_info.zip_code',
+                    'user_business_info.country'
+                )
+                ->where('users.role', 2)
+                ->where('users.id', $id)
+                ->first();
+
+            if (!$customer) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Customer not found'
+                ], 404);
+            }
+
+            // Get customer's subscription information
+            $subscriptions = \DB::table('user_plans')
+                ->leftJoin('payments', 'user_plans.payment_id', '=', 'payments.id')
+                ->select(
+                    'user_plans.id',
+                    'user_plans.plan_name',
+                    'user_plans.start_date',
+                    'user_plans.expiry_date',
+                    'user_plans.status',
+                    'payments.amount',
+                    'payments.currency',
+                    'payments.status as payment_status',
+                    'payments.transaction_date'
+                )
+                ->where('user_plans.user_id', $id)
+                ->orderBy('user_plans.start_date', 'desc')
+                ->get();
+
+            // Get customer's payment history
+            $payments = \DB::table('payments')
+                ->select(
+                    'id',
+                    'amount',
+                    'currency',
+                    'status',
+                    'transaction_id',
+                    'transaction_date',
+                    'payment_mode',
+                    'transaction_detail'
+                )
+                ->where('user_id', $id)
+                ->orderBy('transaction_date', 'desc')
+                ->get();
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Customer retrieved successfully',
+                'data' => [
+                    'customer' => $customer,
+                    'subscriptions' => $subscriptions,
+                    'payments' => $payments,
+                    'total_subscriptions' => $subscriptions->count(),
+                    'total_payments' => $payments->count()
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to retrieve customer information',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }
