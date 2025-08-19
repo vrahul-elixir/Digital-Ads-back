@@ -19,13 +19,17 @@ class CampaignController extends Controller
         $validator = Validator::make($request->all(), [
             'user_id' => 'required|integer|exists:users,id',
             'name' => 'required|string|max:255',
-            'platform_ids' => 'required|string|max:255',
+            'platform_ids' => 'required|array|min:1',
+            'platform_ids.*' => 'string|max:50',
+            'target_audience' => 'required|string|max:255',
             'budget' => 'required|numeric|min:0',
+            'spent' => 'numeric|min:0',
+            'leads' => 'numeric|min:0',
             'objective' => 'required|string|max:255',
-            'details' => 'required|string',
             'start_datetime' => 'required|date',
-            'endtime_datetime' => 'required|date|after:start_datetime',
-            'campaigns_details' => 'nullable|string',
+            'end_datetime' => 'required|date|after:start_datetime',
+            'campaign_details' => 'nullable|string',
+            'status' => 'required|numeric|min:0',
             'update_by' => 'nullable|integer|exists:users,id',
         ]);
 
@@ -37,21 +41,24 @@ class CampaignController extends Controller
             ], 422);
         }
 
+        
+
         try {
             $campaignId = DB::table('campaigns')->insertGetId([
-                'user_id' => $request->user_id,
+               'user_id' => $request->user_id,
                 'name' => $request->name,
-                'platform_ids' => $request->platform_ids,
+                'platform_ids' => json_encode($request->platform_ids),
+                'cam_target' => $request->target_audience,
                 'budget' => $request->budget,
+                'spent' => $request->spent,
                 'objective' => $request->objective,
-                'details' => $request->details,
+                'status' => $request->status,
+                'lead_count' => $request->leads,
                 'start_datetime' => $request->start_datetime,
-                'endtime_datetime' => $request->endtime_datetime,
-                'campaigns_details' => $request->campaigns_details,
+                'end_datetime' => $request->end_datetime,
+                'campaigns_details' => $request->campaign_details,
                 'update_by' => $request->update_by ?? $request->user_id,
                 'update_datetime' => now(),
-                'created_at' => now(),
-                'updated_at' => now(),
             ]);
 
             return response()->json([
