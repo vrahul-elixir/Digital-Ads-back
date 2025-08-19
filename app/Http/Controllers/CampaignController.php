@@ -101,7 +101,7 @@ class CampaignController extends Controller
                     'users.name as user_name',
                     'users.email as user_email'
                 )
-                ->orderBy('campaigns.created_at', 'desc')
+                ->orderBy('campaigns.update_datetime', 'desc')
                 ->get();
 
             return response()->json([
@@ -174,8 +174,11 @@ class CampaignController extends Controller
             'budget' => 'sometimes|numeric|min:0',
             'objective' => 'sometimes|string|max:255',
             'details' => 'sometimes|string',
+            'status' => 'required|numeric|min:0',
+            'spent' => 'numeric|min:0',
+            'lead_count' => 'numeric|min:0',
             'start_datetime' => 'sometimes|date',
-            'endtime_datetime' => 'sometimes|date|after:start_datetime',
+            'end_datetime' => 'sometimes|date|after:start_datetime',
             'campaigns_details' => 'nullable|string',
             'update_by' => 'nullable|integer|exists:users,id',
         ]);
@@ -199,7 +202,6 @@ class CampaignController extends Controller
             }
 
             $updateData = [
-                'updated_at' => now(),
                 'update_datetime' => now(),
             ];
 
@@ -210,8 +212,11 @@ class CampaignController extends Controller
             if ($request->has('budget')) $updateData['budget'] = $request->budget;
             if ($request->has('objective')) $updateData['objective'] = $request->objective;
             if ($request->has('details')) $updateData['details'] = $request->details;
+            if ($request->has('spent')) $updateData['spent'] = $request->spent;
+            if ($request->has('lead_count')) $updateData['lead_count'] = $request->lead_count;
+            if ($request->has('status')) $updateData['status'] = $request->status;
             if ($request->has('start_datetime')) $updateData['start_datetime'] = $request->start_datetime;
-            if ($request->has('endtime_datetime')) $updateData['endtime_datetime'] = $request->endtime_datetime;
+            if ($request->has('endtime_datetime')) $updateData['end_datetime'] = $request->end_datetime;
             if ($request->has('campaigns_details')) $updateData['campaigns_details'] = $request->campaigns_details;
             if ($request->has('update_by')) $updateData['update_by'] = $request->update_by;
 
