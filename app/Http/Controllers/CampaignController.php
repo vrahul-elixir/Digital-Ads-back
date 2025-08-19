@@ -238,7 +238,6 @@ class CampaignController extends Controller
 
     /**
      * Delete campaign
-     *
      * @param int $id
      * @return \Illuminate\Http\JsonResponse
      */
