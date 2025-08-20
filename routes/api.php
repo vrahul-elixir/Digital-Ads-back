@@ -57,4 +57,5 @@ Route::middleware(['auth:sanctum',  StartSession::class])->group(function () {
     Route::post('/campaigns', [CampaignController::class, 'store']);
     Route::put('/campaigns/{id}', [CampaignController::class, 'update']);
     Route::delete('/campaigns/{id}', [CampaignController::class, 'destroy']);
+    Route::get('/campaigns/user/{user_id}', [CampaignController::class, 'getUserCampaigns']);
 });

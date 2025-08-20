@@ -268,4 +268,46 @@ class CampaignController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Get all campaigns for a specific user
+     *
+     * @param int $user_id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getUserCampaigns($user_id)
+    {
+        try {
+            $campaigns = DB::table('campaigns')
+                ->join('users', 'campaigns.user_id', '=', 'users.id')
+                ->select(
+                    'campaigns.*',
+                    'users.name as user_name',
+                    'users.email as user_email'
+                )
+                ->where('campaigns.user_id', $user_id)
+                ->orderBy('campaigns.update_datetime', 'desc')
+                ->get();
+
+            if ($campaigns->isEmpty()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'No campaigns found for this user',
+                    'data' => []
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $campaigns
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch user campaigns',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

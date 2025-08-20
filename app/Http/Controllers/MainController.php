@@ -157,7 +157,7 @@ class MainController extends Controller
         $user_plan = DB::table('user_plans')->insertGetId($user_array); 
 
         $plan = false;
-        $UserPlan = DB::table('user_plans')->select('plan_id', 'plan_name', 'start_date', 'expiry_date')->where(['user_id' => $user->id, 'status' => 0])->orderBy('id', 'desc')->get(); 
+        $UserPlan = DB::table('user_plans')->select('plan_id', 'plan_name', 'start_date', 'expiry_date')->where(['user_id' => $user->id, 'status' => 1])->orderBy('id', 'desc')->get(); 
         if($UserPlan->count() > 0)
         {
             $plan = $UserPlan;

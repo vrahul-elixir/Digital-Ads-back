@@ -153,6 +153,7 @@ class AdminController extends Controller
             'features' => 'nullable|array',
             'isPopular' => 'nullable',
             'isPopular' => 'nullable',
+            'platforms' => 'nullable|array',
             'status' => 'nullable',
             'update_by' => 'nullable|string|max:255',
         ]);
@@ -174,6 +175,7 @@ class AdminController extends Controller
             'price_base' => $request->price_base ?? null,
             'duration' => $request->duration ?? null,
             'features' => json_encode($request->features ?? null),
+            'platforms' => json_encode($request->platforms ?? null),
             'is_popular' => $request->is_popular ?? false,
             'is_current' => $request->is_current ?? false,
             'update_by' => $request->update_by ?? null,
