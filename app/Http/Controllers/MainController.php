@@ -214,6 +214,7 @@ class MainController extends Controller
                     'plan_id' => $validated['plan_id'],
                     'plan_name' => $plan->name,
                     'price' => $plan->price,
+                    'no_of_ads' => $plan->no_of_ads,
                     'plan_details' => json_encode($plan_details),
                     'platforms_ids' => json_encode($platforms_ids),
                     'start_date' => $this->getCurrentDateTimeIndia(),

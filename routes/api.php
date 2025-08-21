@@ -40,6 +40,7 @@ Route::middleware(['auth:sanctum',  StartSession::class])->group(function () {
     // Subscription management routes
     Route::get('/subscriptions', [AdminController::class, 'getUserSubscriptions']);
     Route::get('/subscriptions/{id}', [AdminController::class, 'getSubscriptionById']);
+    Route::get('/subscriptions-user/{id}', [AdminController::class, 'getLatestSubscriptionByUserId']);
     Route::post('/subscriptions/{id}', [AdminController::class, 'updateSubscription']);
 
     // Payment management routes

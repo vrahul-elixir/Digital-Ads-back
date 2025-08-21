@@ -378,6 +378,8 @@ class AdminController extends Controller
                     'user_plans.user_id',
                     'user_plans.plan_id',
                     'user_plans.plan_name',
+                    'user_plans.platforms_ids',
+                    'user_plans.no_of_ads',
                     'user_plans.start_date',
                     'user_plans.expiry_date',
                     'payments.status as payments_status',
@@ -410,6 +412,61 @@ class AdminController extends Controller
             return response()->json([
                 'status' => false,
                 'message' => 'Failed to retrieve subscription',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+     /**
+     * Get latest subscription by user ID
+     * Returns the most recent subscription for a specific user
+     */
+    public function getLatestSubscriptionByUserId(Request $request, $user_id)
+    {
+        try {
+            $subscription = \DB::table('user_plans')
+                ->leftJoin('users', 'user_plans.user_id', '=', 'users.id')
+                ->leftJoin('payments', 'user_plans.payment_id', '=', 'payments.id')
+                ->select(
+                    'user_plans.id',
+                    'user_plans.user_id',
+                    'user_plans.plan_id',
+                    'user_plans.platforms_ids',
+                    'user_plans.no_of_ads',
+                    'user_plans.plan_name',
+                    'user_plans.start_date',
+                    'user_plans.expiry_date',
+                    'payments.status as payments_status',
+                    'payments.amount',
+                    'payments.currency',
+                    'user_plans.status',
+                    'user_plans.update_by',
+                    'user_plans.update_date',
+                    'users.name as user_name',
+                    'users.email as user_email',
+                    'users.number as user_number'
+                )
+                ->where('user_plans.user_id', $user_id)
+                ->orderBy('user_plans.start_date', 'desc')
+                ->first();
+
+            if (!$subscription) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'No subscriptions found for this user'
+                ], 404);
+            }
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Latest subscription retrieved successfully',
+                'data' => $subscription
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to retrieve latest subscription',
                 'error' => $e->getMessage()
             ], 500);
         }
@@ -748,10 +805,10 @@ class AdminController extends Controller
                     'users.name',
                     'users.email',
                     'users.number',
+                    'users.status',
                     'user_business_info.company_name',
                     'user_business_info.industry',
                     'user_business_info.website_url',
-                    'user_business_info.phone_number',
                     'user_business_info.company_description',
                     'user_business_info.address',
                     'user_business_info.state',
