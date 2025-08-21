@@ -143,6 +143,11 @@ class UserController extends Controller
             return response()->json(['message' => 'Invalid or expired OTP'], 401);
         }
 
+        if($user->status == null)
+        {
+            $user->status = 1; // User is Register
+        }
+
         // OTP is valid, clear OTP fields
         $user->otp = null;
         $user->otp_created_at = null;
@@ -169,7 +174,8 @@ class UserController extends Controller
         $user = ['id' => $user->id, 
                  'name' => $user->name,
                  'email' => $user->email,
-                 'number' => $user->number];
+                 'number' => $user->number,
+                 'status' => $user->status];
 
         return response()->json([
             'status' => true,
@@ -191,7 +197,7 @@ class UserController extends Controller
         return response()->json($request->user());
     }
 
-    // Logout (Invalidate Token)
+    // Logout
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();

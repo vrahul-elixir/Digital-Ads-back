@@ -174,9 +174,6 @@ class MainController extends Controller
 
             $end_date = $this->addDaysToCurrentDate($plan->duration, $plan->price_base ?? 'month');
 
-            // Start database transaction
-            DB::beginTransaction();
-
             try {
                 $payment_array = [
                     'user_id' => $user->id,
@@ -234,14 +231,12 @@ class MainController extends Controller
                     throw new \Exception('Failed to save user plan');
                 }
 
-                // Update user status to 1 (active/completed payment)
-                DB::table('users')
-                    ->where('id', $user->id)
-                    ->update(['status' => 1]);
-
-                // Commit transaction
-                DB::commit();
-
+                // Update user status to 2 completed payment
+                if($user->status == 1)
+                {   
+                    DB::table('users')->where('id', $user->id)->update(['status' => 2]);
+                }
+                
                 // Send emails after successful payment
                 $this->sendPaymentEmails($user, $plan, $payment);
 
@@ -324,12 +319,26 @@ class MainController extends Controller
                 'city' => 'nullable|string|max:100',
                 'zip_code' => 'nullable|string|max:20',
                 'country' => 'nullable|string|max:100',
+                'facebook_link' =>'nullable|string|max:255',
+                'instagram_link' =>'nullable|string|max:255',
+                'twitter_link' =>'nullable|string|max:255',
+                'linkedin_link' =>'nullable|string|max:255',
             ]);
 
             $GetBusinessInfo = DB::table('user_business_info')
                 ->where('user_id', $user->id)
                 ->first();
 
+            if($user->status == 2)
+            {
+                DB::table('users')->where('id', $user->id)->update(['status' => 3]);     
+            }  
+            
+            $social_details = ['facebook' => $validated['facebook_link'], 
+                               'instagram' => $validated['instagram_link'],
+                               'twitter' => $validated['twitter_link'],
+                               'linkedin' => $validated['linkedin_link']
+                              ];
             $data = [
                 'user_id' => $user->id,
                 'company_name' => $validated['company_name'],
@@ -339,6 +348,7 @@ class MainController extends Controller
                 'email_id' => $validated['email_id'] ?? null,
                 'company_description' => $validated['company_description'] ?? null,
                 'address' => $validated['address'] ?? null,
+                'social_details' => json_encode($social_details),
                 'state' => $validated['state'] ?? null,
                 'city' => $validated['city'] ?? null,
                 'zip_code' => $validated['zip_code'] ?? null,
