@@ -7,6 +7,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\MainController;
 use App\Http\Controllers\CampaignController;
+use App\Http\Controllers\ImageUploadController;
 use App\Http\Controllers\Api\AppController;
 
 // Rate limit login attempts (5 per minute)
@@ -59,4 +60,9 @@ Route::middleware(['auth:sanctum',  StartSession::class])->group(function () {
     Route::put('/campaigns/{id}', [CampaignController::class, 'update']);
     Route::delete('/campaigns/{id}', [CampaignController::class, 'destroy']);
     Route::get('/campaigns/user/{user_id}', [CampaignController::class, 'getUserCampaigns']);
+
+    // Image upload routes
+    Route::post('/upload/single', [ImageUploadController::class, 'uploadSingleImage']);
+    Route::post('/upload/multiple', [ImageUploadController::class, 'uploadMultipleImages']);
+    Route::delete('/upload/delete', [ImageUploadController::class, 'deleteImage']);
 });
