@@ -19,8 +19,6 @@ class CampaignController extends Controller
         $validator = Validator::make($request->all(), [
             'user_id' => 'required|integer|exists:users,id',
             'name' => 'required|string|max:255',
-            'platform_ids' => 'required|array|min:1',
-            'platform_ids.*' => 'string|max:50',
             'target_audience' => 'required|string|max:255',
             'budget' => 'required|numeric|min:0',
             'spent' => 'numeric|min:0',
@@ -41,13 +39,10 @@ class CampaignController extends Controller
             ], 422);
         }
 
-        
-
         try {
             $campaignId = DB::table('campaigns')->insertGetId([
                'user_id' => $request->user_id,
                 'name' => $request->name,
-                'platform_ids' => json_encode($request->platform_ids),
                 'cam_target' => $request->target_audience,
                 'budget' => $request->budget,
                 'spent' => $request->spent,
@@ -309,5 +304,17 @@ class CampaignController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Update Campaigns Media data
+     *
+     * @param int $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function UpdateCampaignsMedia(request $request)
+    {
+        pre($request->all());
+        die;
     }
 }

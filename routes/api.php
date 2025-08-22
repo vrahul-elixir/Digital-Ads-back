@@ -55,14 +55,15 @@ Route::middleware(['auth:sanctum',  StartSession::class])->group(function () {
 
     // Campaign management routes
     Route::get('/campaigns', [CampaignController::class, 'index']);
+    Route::post('/update-campaigns-media-data/', [CampaignController::class, 'UpdateCampaignsMedia']);
     Route::get('/campaigns/{id}', [CampaignController::class, 'show']);
     Route::post('/campaigns', [CampaignController::class, 'store']);
     Route::put('/campaigns/{id}', [CampaignController::class, 'update']);
     Route::delete('/campaigns/{id}', [CampaignController::class, 'destroy']);
     Route::get('/campaigns/user/{user_id}', [CampaignController::class, 'getUserCampaigns']);
 
-    // Image upload routes
-    Route::post('/upload/single', [ImageUploadController::class, 'uploadSingleImage']);
-    Route::post('/upload/multiple', [ImageUploadController::class, 'uploadMultipleImages']);
-    Route::delete('/upload/delete', [ImageUploadController::class, 'deleteImage']);
+    // Media upload routes
+    Route::post('/upload/single', [ImageUploadController::class, 'uploadSingleMedia']);
+    Route::post('/upload/multiple', [ImageUploadController::class, 'uploadMultipleMedia']);
+    Route::delete('/upload/delete', [ImageUploadController::class, 'deleteMedia']);
 });

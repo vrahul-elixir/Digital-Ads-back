@@ -10,16 +10,16 @@ use Illuminate\Support\Str;
 class ImageUploadController extends Controller
 {
     /**
-     * Upload single image
+     * Upload single media file (image or video)
      * 
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function uploadSingleImage(Request $request)
+    public function uploadSingleMedia(Request $request)
     {
         try {
             $validator = Validator::make($request->all(), [
-                'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+                'file' => 'required|mimes:jpeg,png,jpg,gif,webp,mp4,mov,avi,wmv,flv,webm,mkv|max:51200',
                 'folder' => 'nullable|string|max:50',
             ]);
 
@@ -31,60 +31,62 @@ class ImageUploadController extends Controller
                 ], 422);
             }
 
-            $folder = $request->input('folder', 'images');
-            $image = $request->file('image');
-            $filename = $this->generateFilename($image);
+            $folder = $request->input('folder', 'media');
+            $file = $request->file('file');
+            $filename = $this->generateFilename($file);
             
             // Get file info before moving
-            $fileSize = $image->getSize();
-            $mimeType = $image->getMimeType();
+            $fileSize = $file->getSize();
+            $mimeType = $file->getMimeType();
+            $type = $this->getFileType($mimeType);
             
-            // Store image in public/images folder
-            $destinationPath = public_path("images/{$folder}");
+            // Store file in public/media folder
+            $destinationPath = public_path("media/{$folder}");
             
             // Ensure directory exists
             if (!file_exists($destinationPath)) {
                 mkdir($destinationPath, 0755, true);
             }
             
-            // Move file to public/images
-            $image->move($destinationPath, $filename);
+            // Move file to public/media
+            $file->move($destinationPath, $filename);
             
             // Generate public URL
-            $url = asset("images/{$folder}/{$filename}");
+            $url = asset("media/{$folder}/{$filename}");
 
             return response()->json([
                 'status' => true,
-                'message' => 'Image uploaded successfully',
+                'message' => 'File uploaded successfully',
                 'data' => [
                     'filename' => $filename,
-                    'path' => "images/{$folder}/{$filename}",
+                    'path' => "media/{$folder}/{$filename}",
                     'url' => $url,
                     'size' => $fileSize,
-                    'mime_type' => $mimeType
+                    'mime_type' => $mimeType,
+                    'type' => $type
                 ]
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'status' => false,
-                'message' => 'Failed to upload image',
+                'message' => 'Failed to upload file',
                 'error' => $e->getMessage()
             ], 500);
         }
     }
 
     /**
-     * Upload multiple images
+     * Upload multiple media files (images or videos)
      * 
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function uploadMultipleImages(Request $request)
+    public function uploadMultipleMedia(Request $request)
     {
         try {
             $validator = Validator::make($request->all(), [
-                'images.*' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+                'files.*' => 'required|mimes:jpeg,png,jpg,gif,webp,mp4,mov,avi,wmv,flv,webm,mkv|max:51200',
                 'folder' => 'nullable|string|max:50',
             ]);
 
@@ -96,61 +98,63 @@ class ImageUploadController extends Controller
                 ], 422);
             }
 
-            $folder = $request->input('folder', 'images');
-            $images = $request->file('images');
-            $uploadedImages = [];
+            $folder = $request->input('folder', 'media');
+            $files = $request->file('files');
+            $uploadedFiles = [];
 
-            $destinationPath = public_path("images/{$folder}");
+            $destinationPath = public_path("media/{$folder}");
             
             // Ensure directory exists
             if (!file_exists($destinationPath)) {
                 mkdir($destinationPath, 0755, true);
             }
 
-            foreach ($images as $image) {
-                $filename = $this->generateFilename($image);
+            foreach ($files as $file) {
+                $filename = $this->generateFilename($file);
                 
                 // Get file info before moving
-                $fileSize = $image->getSize();
-                $mimeType = $image->getMimeType();
+                $fileSize = $file->getSize();
+                $mimeType = $file->getMimeType();
+                $type = $this->getFileType($mimeType);
                 
-                // Move file to public/images
-                $image->move($destinationPath, $filename);
+                // Move file to public/media
+                $file->move($destinationPath, $filename);
                 
                 // Generate public URL
-                $url = asset("images/{$folder}/{$filename}");
+                $url = asset("media/{$folder}/{$filename}");
 
-                $uploadedImages[] = [
+                $uploadedFiles[] = [
                     'filename' => $filename,
-                    'path' => "images/{$folder}/{$filename}",
+                    'path' => "media/{$folder}/{$filename}",
                     'url' => $url,
                     'size' => $fileSize,
-                    'mime_type' => $mimeType
+                    'mime_type' => $mimeType,
+                    'type' => $type
                 ];
             }
 
             return response()->json([
                 'status' => true,
-                'message' => 'Images uploaded successfully',
-                'data' => $uploadedImages
+                'message' => 'Files uploaded successfully',
+                'data' => $uploadedFiles
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'status' => false,
-                'message' => 'Failed to upload images',
+                'message' => 'Failed to upload files',
                 'error' => $e->getMessage()
             ], 500);
         }
     }
 
     /**
-     * Delete image
+     * Delete media file
      * 
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function deleteImage(Request $request)
+    public function deleteMedia(Request $request)
     {
         try {
             $validator = Validator::make($request->all(), [
@@ -173,19 +177,19 @@ class ImageUploadController extends Controller
                 
                 return response()->json([
                     'status' => true,
-                    'message' => 'Image deleted successfully'
+                    'message' => 'File deleted successfully'
                 ]);
             }
 
             return response()->json([
                 'status' => false,
-                'message' => 'Image not found'
+                'message' => 'File not found'
             ], 404);
 
         } catch (\Exception $e) {
             return response()->json([
                 'status' => false,
-                'message' => 'Failed to delete image',
+                'message' => 'Failed to delete file',
                 'error' => $e->getMessage()
             ], 500);
         }
@@ -204,5 +208,23 @@ class ImageUploadController extends Controller
         $random = Str::random(8);
         
         return "{$timestamp}_{$random}.{$extension}";
+    }
+
+    /**
+     * Get file type based on MIME type
+     * 
+     * @param string $mimeType
+     * @return string
+     */
+    private function getFileType($mimeType)
+    {
+        if (strpos($mimeType, 'image/') === 0) {
+            return 'images';
+        } elseif (strpos($mimeType, 'video/') === 0) {
+            return 'video';
+        }
+        
+        // Default to 'images' for unknown types, but this should not happen due to validation
+        return 'images';
     }
 }
