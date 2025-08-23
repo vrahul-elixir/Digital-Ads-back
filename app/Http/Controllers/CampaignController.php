@@ -306,15 +306,58 @@ class CampaignController extends Controller
         }
     }
 
-    /**
-     * Update Campaigns Media data
-     *
-     * @param int $id
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function UpdateCampaignsMedia(request $request)
-    {
-        pre($request->all());
-        die;
+   /**
+ * Update Campaigns Media data
+ *
+ * @param Request $request
+ * @return \Illuminate\Http\JsonResponse
+ */
+public function UpdateCampaignsMedia(Request $request)
+{
+    try {
+        
+        $campaignId = $request->input('campaign_id');
+        $files = [];
+        $url = $request->input('url');
+        $type = $request->input('types');
+        $description = $request->input('descriptions');
+
+        
+        foreach($url as $key => $value)
+        {
+            $files[$key]['url'] = $value;
+            $files[$key]['type'] = $type[$key];
+            $files[$key]['description'] = $description[$key];
+        }
+
+       
+        foreach ($files as $file) {
+            DB::table('campaigns_media')->insert([
+                'campaign_id' => $campaignId,
+                'file_url'    => $file['url'],
+                'type'        => $file['type'],
+                'details'     => $file['description'] ?? null,
+                'status'      => 0,
+                'date_time'   => getCurrentDateTimeIndia()
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Campaign media files added successfully',
+            'data' => [
+                'campaign_id' => $campaignId,
+                'files_count' => count($files)
+            ]
+        ], 201);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to add campaign media files',
+            'error'   => $e->getMessage()
+        ], 500);
     }
+}
+
 }
