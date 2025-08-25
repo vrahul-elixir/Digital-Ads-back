@@ -55,6 +55,7 @@ Route::middleware(['auth:sanctum',  StartSession::class])->group(function () {
 
     // Campaign management routes
     Route::get('/campaigns', [CampaignController::class, 'index']);
+    Route::get('/campaigns/media/{campaignId}', [CampaignController::class, 'getCampaignMedia']);
     Route::post('/update-campaigns-media-data/', [CampaignController::class, 'UpdateCampaignsMedia']);
     Route::get('/campaigns/{id}', [CampaignController::class, 'show']);
     Route::post('/campaigns', [CampaignController::class, 'store']);

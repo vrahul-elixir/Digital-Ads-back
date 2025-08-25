@@ -18,6 +18,7 @@ class CampaignController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'user_id' => 'required|integer|exists:users,id',
+            'plan_id' => 'required|integer',
             'name' => 'required|string|max:255',
             'target_audience' => 'required|string|max:255',
             'budget' => 'required|numeric|min:0',
@@ -42,6 +43,7 @@ class CampaignController extends Controller
         try {
             $campaignId = DB::table('campaigns')->insertGetId([
                'user_id' => $request->user_id,
+               'plan_id' => $request->plan_id,
                 'name' => $request->name,
                 'cam_target' => $request->target_audience,
                 'budget' => $request->budget,
@@ -165,7 +167,6 @@ class CampaignController extends Controller
         $validator = Validator::make($request->all(), [
             'user_id' => 'sometimes|integer|exists:users,id',
             'name' => 'sometimes|string|max:255',
-            'platform_ids' => 'sometimes|string|max:255',
             'budget' => 'sometimes|numeric|min:0',
             'objective' => 'sometimes|string|max:255',
             'details' => 'sometimes|string',
@@ -203,7 +204,6 @@ class CampaignController extends Controller
             // Only update provided fields
             if ($request->has('user_id')) $updateData['user_id'] = $request->user_id;
             if ($request->has('name')) $updateData['name'] = $request->name;
-            if ($request->has('platform_ids')) $updateData['platform_ids'] = $request->platform_ids;
             if ($request->has('budget')) $updateData['budget'] = $request->budget;
             if ($request->has('objective')) $updateData['objective'] = $request->objective;
             if ($request->has('details')) $updateData['details'] = $request->details;
@@ -275,10 +275,12 @@ class CampaignController extends Controller
         try {
             $campaigns = DB::table('campaigns')
                 ->join('users', 'campaigns.user_id', '=', 'users.id')
+                ->join('plans', 'campaigns.plan_id', '=', 'plans.id')
                 ->select(
                     'campaigns.*',
                     'users.name as user_name',
-                    'users.email as user_email'
+                    'users.email as user_email',
+                    'plans.platforms as platform_ids'
                 )
                 ->where('campaigns.user_id', $user_id)
                 ->orderBy('campaigns.update_datetime', 'desc')
@@ -306,58 +308,93 @@ class CampaignController extends Controller
         }
     }
 
-   /**
- * Update Campaigns Media data
- *
- * @param Request $request
- * @return \Illuminate\Http\JsonResponse
- */
-public function UpdateCampaignsMedia(Request $request)
-{
-    try {
-        
-        $campaignId = $request->input('campaign_id');
-        $files = [];
-        $url = $request->input('url');
-        $type = $request->input('types');
-        $description = $request->input('descriptions');
+    /**
+     * Update Campaigns Media data
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function UpdateCampaignsMedia(Request $request)
+    {
+        try {
+            
+            $campaignId = $request->input('campaign_id');
+            $files = [];
+            $url = $request->input('url');
+            $type = $request->input('types');
+            $description = $request->input('descriptions');
 
-        
-        foreach($url as $key => $value)
-        {
-            $files[$key]['url'] = $value;
-            $files[$key]['type'] = $type[$key];
-            $files[$key]['description'] = $description[$key];
+            
+            foreach($url as $key => $value)
+            {
+                $files[$key]['url'] = $value;
+                $files[$key]['type'] = $type[$key];
+                $files[$key]['description'] = $description[$key];
+            }
+
+           
+            foreach ($files as $file) {
+                DB::table('campaigns_media')->insert([
+                    'campaign_id' => $campaignId,
+                    'file_url'    => $file['url'],
+                    'type'        => $file['type'],
+                    'details'     => $file['description'] ?? null,
+                    'status'      => 0,
+                    'date_time'   => getCurrentDateTimeIndia()
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Campaign media files added successfully',
+                'data' => [
+                    'campaign_id' => $campaignId,
+                    'files_count' => count($files)
+                ]
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to add campaign media files',
+                'error'   => $e->getMessage()
+            ], 500);
         }
-
-       
-        foreach ($files as $file) {
-            DB::table('campaigns_media')->insert([
-                'campaign_id' => $campaignId,
-                'file_url'    => $file['url'],
-                'type'        => $file['type'],
-                'details'     => $file['description'] ?? null,
-                'status'      => 0,
-                'date_time'   => getCurrentDateTimeIndia()
-            ]);
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Campaign media files added successfully',
-            'data' => [
-                'campaign_id' => $campaignId,
-                'files_count' => count($files)
-            ]
-        ], 201);
-
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Failed to add campaign media files',
-            'error'   => $e->getMessage()
-        ], 500);
     }
-}
 
+    /**
+     * Get all media files for a specific campaign
+     *
+     * @param int $campaignId
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getCampaignMedia($campaignId)
+    {
+        try {
+            $mediaFiles = DB::table('campaigns_media')
+                ->where('campaign_id', $campaignId)
+                ->orderBy('date_time', 'desc')
+                ->get();
+
+            if ($mediaFiles->isEmpty()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'No media files found for this campaign',
+                    'data' => []
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $mediaFiles
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch campaign media files',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }
