@@ -397,4 +397,85 @@ class CampaignController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Approve or changes, reject campaign media
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function mediaStatus(Request $request)
+    {   
+        try {
+            $status = $request->input('status'); 
+            $media_id = $request->input('media_id');
+            
+            // Validate required fields
+            if (!$status || !$media_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Status and media_id are required'
+                ], 422);
+            }
+
+            // Check if media exists
+            $media = DB::table('campaigns_media')->where('id', $media_id)->first();
+            
+            if (!$media) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Media not found'
+                ], 404);
+            }
+
+            $updateData = [];
+            if ($status == 'approved') {
+                $updateData['status'] = 1; // Approved
+            } elseif ($status == 'rejected') {
+                $updateData['status'] = 3; // Rejected
+            } elseif ($status == 'needs_changes') {
+                $updateData['status'] = 2; // Changes/Feedback needed
+               
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid status. Must be "approved", "rejected", or "changes"'
+                ], 422);
+            }
+
+             // Get feedback from request if available
+            $feedback = $request->input('feedback');
+            if($feedback) {
+                $updateData['feedback'] = $feedback;
+            }
+            
+            // Update the media status
+            $result = DB::table('campaigns_media')
+                ->where('id', $media_id)
+                ->update($updateData);
+
+            if ($result) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Media status updated successfully',
+                    'data' => [
+                        'media_id' => $media_id,
+                        'status' => $status
+                    ]
+                ], 200);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to update media status'
+                ], 500);
+            }
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update media status',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }
