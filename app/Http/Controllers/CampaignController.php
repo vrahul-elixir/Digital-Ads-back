@@ -332,31 +332,55 @@ class CampaignController extends Controller
                 $files[$key]['description'] = $description[$key];
             }
 
+            $insertedCount = 0;
+            $updatedCount = 0;
            
             foreach ($files as $file) {
-                DB::table('campaigns_media')->insert([
-                    'campaign_id' => $campaignId,
-                    'file_url'    => $file['url'],
-                    'type'        => $file['type'],
-                    'details'     => $file['description'] ?? null,
-                    'status'      => 0,
-                    'date_time'   => getCurrentDateTimeIndia()
-                ]);
+                // Check if file with this URL already exists for this campaign
+                $existingFile = DB::table('campaigns_media')
+                    ->where('campaign_id', $campaignId)
+                    ->where('file_url', $file['url'])
+                    ->first();
+
+                if ($existingFile) {
+                    // Update existing file
+                    DB::table('campaigns_media')
+                        ->where('id', $existingFile->id)
+                        ->update([
+                            'type'        => $file['type'],
+                            'details'     => $file['description'] ?? null,
+                            'date_time'   => getCurrentDateTimeIndia()
+                        ]);
+                    $updatedCount++;
+                } else {
+                    // Insert new file
+                    DB::table('campaigns_media')->insert([
+                        'campaign_id' => $campaignId,
+                        'file_url'    => $file['url'],
+                        'type'        => $file['type'],
+                        'details'     => $file['description'] ?? null,
+                        'status'      => 0,
+                        'date_time'   => getCurrentDateTimeIndia()
+                    ]);
+                    $insertedCount++;
+                }
             }
 
             return response()->json([
                 'success' => true,
-                'message' => 'Campaign media files added successfully',
+                'message' => 'Campaign media files processed successfully',
                 'data' => [
                     'campaign_id' => $campaignId,
-                    'files_count' => count($files)
+                    'files_count' => count($files),
+                    'inserted' => $insertedCount,
+                    'updated' => $updatedCount
                 ]
             ], 201);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to add campaign media files',
+                'message' => 'Failed to process campaign media files',
                 'error'   => $e->getMessage()
             ], 500);
         }
@@ -474,6 +498,79 @@ class CampaignController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update media status',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete campaign media file
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function deleteCampaignMedia(Request $request)
+    {
+        try {
+            $mediaId = $request->input('media_id');
+            
+            // Validate required field
+            if (!$mediaId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Media ID is required'
+                ], 422);
+            }
+
+            // Check if media exists
+            $media = DB::table('campaigns_media')->where('id', $mediaId)->first();
+            
+            if (!$media) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Media file not found'
+                ], 404);
+            }
+
+            // Get the file URL and check if physical file exists
+            if ($media->file_url) {
+                $basePath = 'Digital-Ads-back/public/media/campaigns/';
+                $fileName = basename($media->file_url);
+                $filePath = $basePath . $fileName;
+                
+                // Check if file exists and delete it
+                if (file_exists($filePath)) {
+                    if (!unlink($filePath)) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Failed to delete physical file'
+                        ], 500);
+                    }
+                }
+            }
+
+            // Delete the media file from database
+            $result = DB::table('campaigns_media')->where('id', $mediaId)->delete();
+
+            if ($result) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Media file deleted successfully from both database and filesystem',
+                    'data' => [
+                        'media_id' => $mediaId
+                    ]
+                ], 200);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to delete media file from database'
+                ], 500);
+            }
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete media file',
                 'error' => $e->getMessage()
             ], 500);
         }

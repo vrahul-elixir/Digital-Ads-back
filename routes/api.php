@@ -63,6 +63,7 @@ Route::middleware(['auth:sanctum',  StartSession::class])->group(function () {
     Route::delete('/campaigns/{id}', [CampaignController::class, 'destroy']);
     Route::get('/campaigns/user/{user_id}', [CampaignController::class, 'getUserCampaigns']);
     Route::post('/campaigns/media/status', [CampaignController::class, 'mediaStatus']);
+    Route::post('/campaigns/media/delete', [CampaignController::class, 'deleteCampaignMedia']);
 
     // Media upload routes
     Route::post('/upload/single', [ImageUploadController::class, 'uploadSingleMedia']);
