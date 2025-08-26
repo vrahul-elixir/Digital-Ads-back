@@ -64,6 +64,10 @@ Route::middleware(['auth:sanctum',  StartSession::class])->group(function () {
     Route::get('/campaigns/user/{user_id}', [CampaignController::class, 'getUserCampaigns']);
     Route::post('/campaigns/media/status', [CampaignController::class, 'mediaStatus']);
     Route::post('/campaigns/media/delete', [CampaignController::class, 'deleteCampaignMedia']);
+    
+    // Single media management routes
+    Route::get('/media/{mediaId}', [CampaignController::class, 'getSingleMedia']);
+    Route::put('/media/{mediaId}', [CampaignController::class, 'updateSingleMedia']);
 
     // Media upload routes
     Route::post('/upload/single', [ImageUploadController::class, 'uploadSingleMedia']);

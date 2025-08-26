@@ -27,7 +27,7 @@ class CampaignController extends Controller
             'objective' => 'required|string|max:255',
             'start_datetime' => 'required|date',
             'end_datetime' => 'required|date|after:start_datetime',
-            'campaign_details' => 'nullable|string',
+            'campaigns_details' => 'nullable|string',
             'status' => 'required|numeric|min:0',
             'update_by' => 'nullable|integer|exists:users,id',
         ]);
@@ -53,7 +53,7 @@ class CampaignController extends Controller
                 'lead_count' => $request->leads,
                 'start_datetime' => $request->start_datetime,
                 'end_datetime' => $request->end_datetime,
-                'campaigns_details' => $request->campaign_details,
+                'campaigns_details' => $request->campaigns_details,
                 'update_by' => $request->update_by ?? $request->user_id,
                 'update_datetime' => now(),
             ]);
@@ -571,6 +571,104 @@ class CampaignController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to delete media file',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get single media data
+     *
+     * @param int $mediaId
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getSingleMedia($mediaId)
+    {
+        try {
+            $media = DB::table('campaigns_media')->where('id', $mediaId)->first();
+
+            if (!$media) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Media not found'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $media
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch media',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update single media data
+     *
+     * @param Request $request
+     * @param int $mediaId
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function updateSingleMedia(Request $request, $mediaId)
+    {
+        $validator = Validator::make($request->all(), [
+            'file_url' => 'sometimes|string|max:255',
+            'type' => 'sometimes|string|max:50',
+            'details' => 'nullable|string',
+            'status' => 'sometimes|integer|min:0',
+            'feedback' => 'nullable|string'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation errors',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            // Check if media exists
+            $media = DB::table('campaigns_media')->where('id', $mediaId)->first();
+            
+            if (!$media) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Media not found'
+                ], 404);
+            }
+
+            $updateData = [
+                'date_time' => now(),
+            ];
+
+            // Only update provided fields
+            if ($request->has('file_url')) $updateData['file_url'] = $request->file_url;
+            if ($request->has('type')) $updateData['type'] = $request->type;
+            if ($request->has('details')) $updateData['details'] = $request->details;
+            if ($request->has('status')) $updateData['status'] = $request->status;
+            if ($request->has('feedback')) $updateData['feedback'] = $request->feedback;
+
+            DB::table('campaigns_media')->where('id', $mediaId)->update($updateData);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Media updated successfully',
+                'data' => [
+                    'media_id' => $mediaId
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update media',
                 'error' => $e->getMessage()
             ], 500);
         }
