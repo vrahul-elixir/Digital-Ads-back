@@ -470,7 +470,25 @@ class CampaignController extends Controller
              // Get feedback from request if available
             $feedback = $request->input('feedback');
             if($feedback) {
-                $updateData['feedback'] = $feedback;
+                // Initialize feedback array
+                $feedbackArray = [];
+                
+                // Check if existing feedback exists and decode it
+                if ($media->feedback) {
+                    $existingFeedback = json_decode($media->feedback, true);
+                    if (is_array($existingFeedback)) {
+                        $feedbackArray = $existingFeedback;
+                    }
+                }
+                
+                // Add new feedback with timestamp
+                $feedbackArray[] = [
+                    'feedback' => $feedback,
+                    'date_time' => getCurrentDateTimeIndia()
+                ];
+                
+                // Encode feedback array to JSON
+                $updateData['feedback'] = json_encode($feedbackArray);
             }
             
             // Update the media status
@@ -608,7 +626,7 @@ class CampaignController extends Controller
         }
     }
 
-    /**
+      /**
      * Update single media data
      *
      * @param Request $request
@@ -621,8 +639,6 @@ class CampaignController extends Controller
             'file_url' => 'sometimes|string|max:255',
             'type' => 'sometimes|string|max:50',
             'details' => 'nullable|string',
-            'status' => 'sometimes|integer|min:0',
-            'feedback' => 'nullable|string'
         ]);
 
         if ($validator->fails()) {
@@ -645,16 +661,47 @@ class CampaignController extends Controller
             }
 
             $updateData = [
-                'date_time' => now(),
+                'date_time' => getCurrentDateTimeIndia(),
+                'status' => 4, // Set status to 4
             ];
 
-            // Only update provided fields
-            if ($request->has('file_url')) $updateData['file_url'] = $request->file_url;
-            if ($request->has('type')) $updateData['type'] = $request->type;
-            if ($request->has('details')) $updateData['details'] = $request->details;
-            if ($request->has('status')) $updateData['status'] = $request->status;
-            if ($request->has('feedback')) $updateData['feedback'] = $request->feedback;
+            // Initialize old information array
+            $oldInformation = [];
+            if ($media->old_information) {
+                $oldInformation = json_decode($media->old_information, true);
+                if (!is_array($oldInformation)) {
+                    $oldInformation = [];
+                }
+            }
 
+            // Track changes for file_url
+            if ($request->has('file_url') && $request->file_url != $media->file_url) {
+                $oldInformation[] = [
+                    'field' => 'file_url',
+                    'old_value' => $media->file_url,
+                    'timestamp' => now()->toDateTimeString()
+                ];
+                $updateData['file_url'] = $request->file_url;
+            }
+
+            // Track changes for details
+            if ($request->has('details') && $request->details != $media->details) {
+                $oldInformation[] = [
+                    'field' => 'details',
+                    'old_value' => $media->details,
+                    'timestamp' => now()->toDateTimeString()
+                ];
+                $updateData['details'] = $request->details;
+            }
+
+            // Update old_information if changes were tracked
+            if (!empty($oldInformation)) {
+                $updateData['old_information'] = json_encode($oldInformation);
+            }   
+            
+            // Update other fields
+            if ($request->has('type')) $updateData['type'] = $request->type;
+           
             DB::table('campaigns_media')->where('id', $mediaId)->update($updateData);
 
             return response()->json([
