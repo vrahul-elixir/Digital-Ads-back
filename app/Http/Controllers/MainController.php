@@ -142,10 +142,12 @@ class MainController extends Controller
     public function StorePayment(Request $request)
     {
         try {
-            // Validate required inputs
+            // Validate required inputs - updated for new request structure
             $validated = $request->validate([
                 'plan_id' => 'required|integer|exists:plans,id',
-                'amount' => 'required|numeric|min:0',
+                'subtotal' => 'required|numeric|min:0',
+                'tax_amount' => 'required|numeric|min:0',
+                'total_amount' => 'required|numeric|min:0',
                 'payment_id' => 'required|string|max:255',
                 'order_id' => 'required|string|max:255',
                 'signature' => 'required|string|max:255',
@@ -177,7 +179,7 @@ class MainController extends Controller
             try {
                 $payment_array = [
                     'user_id' => $user->id,
-                    'amount' => $validated['amount'],
+                    'amount' => $validated['total_amount'], // Use total_amount instead of amount
                     'payment_id' => $validated['payment_id'],
                     'status' => '1', // Success
                     'payment_mode' => 'razorpay',
@@ -188,7 +190,9 @@ class MainController extends Controller
                     'transaction_detail' => json_encode([
                         'order_id' => $validated['order_id'],
                         'payment_id' => $validated['payment_id'],
-                        'amount' => $validated['amount'],
+                        'subtotal' => $validated['subtotal'],
+                        'tax_amount' => $validated['tax_amount'],
+                        'total_amount' => $validated['total_amount'],
                         'signature' => $validated['signature']
                     ])
                 ];

@@ -16,19 +16,19 @@ class CampaignController extends Controller
      */
     public function store(Request $request)
     {
+        
         $validator = Validator::make($request->all(), [
             'user_id' => 'required|integer|exists:users,id',
-            'plan_id' => 'required|integer',
+            'user_plans_id' => 'required|integer',
             'name' => 'required|string|max:255',
-            'target_audience' => 'required|string|max:255',
+            'cam_target' => 'required|string|max:255',
             'budget' => 'required|numeric|min:0',
             'spent' => 'numeric|min:0',
-            'leads' => 'numeric|min:0',
+            'lead_count' => 'numeric|min:0',
             'objective' => 'required|string|max:255',
             'start_datetime' => 'required|date',
             'end_datetime' => 'required|date|after:start_datetime',
             'campaigns_details' => 'nullable|string',
-            'status' => 'required|numeric|min:0',
             'update_by' => 'nullable|integer|exists:users,id',
         ]);
 
@@ -43,14 +43,14 @@ class CampaignController extends Controller
         try {
             $campaignId = DB::table('campaigns')->insertGetId([
                'user_id' => $request->user_id,
-               'plan_id' => $request->plan_id,
+               'user_plans_id' => $request->user_plans_id,
                 'name' => $request->name,
-                'cam_target' => $request->target_audience,
+                'cam_target' => $request->cam_target,
                 'budget' => $request->budget,
                 'spent' => $request->spent,
                 'objective' => $request->objective,
-                'status' => $request->status,
-                'lead_count' => $request->leads,
+                'status' => 2, // Under Review set Default
+                'lead_count' => $request->lead_count,
                 'start_datetime' => $request->start_datetime,
                 'end_datetime' => $request->end_datetime,
                 'campaigns_details' => $request->campaigns_details,
@@ -69,7 +69,7 @@ class CampaignController extends Controller
                     'objective' => $request->objective,
                     'details' => $request->details,
                     'start_datetime' => $request->start_datetime,
-                    'endtime_datetime' => $request->endtime_datetime,
+                    'end_datetime' => $request->end_datetime,
                     'campaigns_details' => $request->campaigns_details,
                 ]
             ], 201);
@@ -275,12 +275,12 @@ class CampaignController extends Controller
         try {
             $campaigns = DB::table('campaigns')
                 ->join('users', 'campaigns.user_id', '=', 'users.id')
-                ->join('plans', 'campaigns.plan_id', '=', 'plans.id')
+                ->join('user_plans', 'campaigns.user_plans_id', '=', 'user_plans.id')
                 ->select(
                     'campaigns.*',
                     'users.name as user_name',
                     'users.email as user_email',
-                    'plans.platforms as platform_ids'
+                    'user_plans.platforms_ids as platform_ids'
                 )
                 ->where('campaigns.user_id', $user_id)
                 ->orderBy('campaigns.update_datetime', 'desc')
@@ -455,8 +455,6 @@ class CampaignController extends Controller
             $updateData = [];
             if ($status == 'approved') {
                 $updateData['status'] = 1; // Approved
-            } elseif ($status == 'rejected') {
-                $updateData['status'] = 3; // Rejected
             } elseif ($status == 'needs_changes') {
                 $updateData['status'] = 2; // Changes/Feedback needed
                
@@ -497,6 +495,43 @@ class CampaignController extends Controller
                 ->update($updateData);
 
             if ($result) {
+                // Get the campaign ID for this media
+                $campaignId = $media->campaign_id;
+                
+                // Get all media files for this campaign
+                $campaignMedia = DB::table('campaigns_media')
+                    ->where('campaign_id', $campaignId)
+                    ->get();
+                
+                // Determine campaign status based on media statuses
+                $campaignStatus = 0; // Default status
+                $hasNeedsChanges = false;
+                $allApproved = true;
+                
+                foreach ($campaignMedia as $mediaFile) {
+                    if ($mediaFile->status == 2) { // Needs changes
+                        $hasNeedsChanges = true;
+                        $allApproved = false;
+                        break;
+                    } elseif ($mediaFile->status != 1) { // Not approved
+                        $allApproved = false;
+                    }
+                }
+                
+                // Set campaign status based on media statuses
+                if ($hasNeedsChanges) {
+                    $campaignStatus = 3; // Needs changes
+                } elseif ($allApproved && count($campaignMedia) > 0) {
+                    $campaignStatus = 1; // Approved
+                }
+                
+                // Update campaign status if needed
+                if ($campaignStatus > 0) {
+                    DB::table('campaigns')
+                        ->where('id', $campaignId)
+                        ->update(['status' => $campaignStatus]);
+                }
+                
                 return response()->json([
                     'success' => true,
                     'message' => 'Media status updated successfully',
@@ -697,12 +732,17 @@ class CampaignController extends Controller
             // Update old_information if changes were tracked
             if (!empty($oldInformation)) {
                 $updateData['old_information'] = json_encode($oldInformation);
-            }   
-            
+            }  
+             
             // Update other fields
             if ($request->has('type')) $updateData['type'] = $request->type;
+            
+            $updateData['date_time'] = getCurrentDateTimeIndia();
            
             DB::table('campaigns_media')->where('id', $mediaId)->update($updateData);
+           
+             // update campaigns status is Update by Team
+            DB::table('campaigns')->where('id', $media->campaign_id)->update(['status' => '4', 'update_datetime' => getCurrentDateTimeIndia()]);
 
             return response()->json([
                 'success' => true,

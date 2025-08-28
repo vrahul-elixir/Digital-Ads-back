@@ -372,7 +372,6 @@ class AdminController extends Controller
         try {
             $subscription = \DB::table('user_plans')
                 ->leftJoin('users', 'user_plans.user_id', '=', 'users.id')
-                ->leftJoin('payments', 'user_plans.user_id', '=', 'payments.user_id')
                 ->select(
                     'user_plans.id',
                     'user_plans.user_id',
@@ -382,15 +381,13 @@ class AdminController extends Controller
                     'user_plans.no_of_ads',
                     'user_plans.start_date',
                     'user_plans.expiry_date',
-                    'payments.status as payments_status',
-                    'payments.amount',
-                    'payments.currency',
+                    'user_plans.price',
                     'user_plans.status',
                     'user_plans.update_by',
                     'user_plans.update_date',
                     'users.name as user_name',
                     'users.email as user_email',
-                    'users.number as user_number'
+                    'users.number as user_number',
                 )
                 ->where('user_plans.id', $id)
                 ->first();
@@ -794,6 +791,7 @@ class AdminController extends Controller
      * Get Customer Information
      * Returns customer information from users table with role = 2
      * and joins with user_business_info table to get business information
+     * and includes user_plans details in sub-array for each customer
      */
     public function getCustomerInfo(Request $request)
     {
@@ -818,6 +816,38 @@ class AdminController extends Controller
                 )
                 ->where('users.role', 2)
                 ->get();
+
+            // Get user_plans details for each customer
+            $customerIds = $customers->pluck('id')->toArray();
+    
+            if (!empty($customerIds)) {
+                $userPlans = \DB::table('user_plans')
+                    ->leftJoin('campaigns', 'user_plans.id', '=', 'campaigns.user_plans_id')
+                    ->select(
+                        'user_plans.id',
+                        'user_plans.user_id',
+                        'user_plans.plan_id',
+                        'user_plans.plan_name',
+                        'user_plans.platforms_ids',
+                        'user_plans.no_of_ads',
+                        'user_plans.start_date',
+                        'user_plans.expiry_date',
+                        'campaigns.status as campaigns_status',
+                        'campaigns.id as campaigns_id'
+                    )
+                    ->whereIn('user_plans.user_id', $customerIds)
+                    ->orderBy('user_plans.start_date', 'desc')
+                    ->get()
+                    ->groupBy('user_id');
+
+                
+                // Add user_plans as sub-array for each customer
+                $customers = $customers->map(function ($customer) use ($userPlans) {
+                $customer->user_plans = $userPlans->get($customer->id, collect())->toArray();
+                     
+                    return $customer;
+                });
+            } 
 
             return response()->json([
                 'status' => true,
