@@ -165,11 +165,15 @@ class UserController extends Controller
         }
 
         $businessInfo = false;  
+        $basic_campaign = false;
         $GetBusinessInfo = DB::table('user_business_info')->where('user_id',$user->id)->first(); 
         if($GetBusinessInfo != false)
         {
             $businessInfo = $GetBusinessInfo;
+            $basic_campaign = $GetBusinessInfo->basic_campaign;
         }
+
+        
 
         $user = ['id' => $user->id, 
                  'name' => $user->name,
@@ -184,6 +188,7 @@ class UserController extends Controller
             'token'   => $token,
             'plan' => $plan,
             'business_info' => $businessInfo,
+            'basic_campaign' => $basic_campaign
         ]);
     }
 

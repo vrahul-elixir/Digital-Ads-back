@@ -27,6 +27,7 @@ Route::middleware(['auth:sanctum',  StartSession::class])->group(function () {
     Route::get('/single-plan-detail', [MainController::class, 'GetPlanByName']);
     Route::post('/store-payment', [MainController::class, 'StorePayment']);
     Route::post('/store-business-info', [MainController::class, 'storeBusinessInfo']);
+    Route::post('/store-campaign-setup', [MainController::class, 'storeCampaignSetupDetails']);
 
     // Admin authenticated routes
     Route::get('/admin/profile', [AdminController::class, 'adminProfile']);

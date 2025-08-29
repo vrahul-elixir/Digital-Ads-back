@@ -401,4 +401,76 @@ class MainController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Store campaign setup details including business info and campaign details
+     */
+    public function storeCampaignSetupDetails(Request $request)
+    {
+        try {
+            $user = $request->user();
+            if (!$user) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'User not authenticated'
+                ], 401);
+            }
+
+            // Validate the request data
+            $validated = $request->validate([
+                'business_info' => 'required|array',
+                'campaign_details' => 'required|array',
+                ]);
+
+            $businessInfo = $validated['business_info'];
+            $campaignDetails = $validated['campaign_details'];
+ 
+            try {
+                // Store or update business information
+                $GetBusinessInfo = DB::table('user_business_info')
+                    ->where('user_id', $user->id)
+                    ->first();
+
+                $businessData = [
+                    'user_id' => $user->id,
+                    'company_name' => $businessInfo['companyName'],
+                    'industry' => $businessInfo['industry'] ?? null,
+                    'website_url' => $businessInfo['website'] ?? null,
+                    'phone_number' => $businessInfo['phone'] ?? null,
+                    'email_id' => $businessInfo['email'] ?? null,
+                    'company_description' => $businessInfo['description'] ?? null,
+                    'address' => $businessInfo['address'] ?? null,
+                    'basic_campaign' => json_encode($campaignDetails),
+                    'update_datetime' => $this->getCurrentDateTimeIndia(),
+                ];
+
+                if ($GetBusinessInfo && $GetBusinessInfo->id) {
+                    DB::table('user_business_info')
+                        ->where('user_id', $user->id)
+                        ->update($businessData);
+                } else {
+                    DB::table('user_business_info')->insert($businessData);
+                }
+ 
+                return response()->json([
+                    'status' => true,
+                    'message' => 'Campaign setup details stored successfully',
+                    'data' => [
+                        'business_info' => $businessInfo,
+                    ]
+                ], 200);
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to process campaign setup details'
+            ], 500);
+        }
+    }
+    
 }
