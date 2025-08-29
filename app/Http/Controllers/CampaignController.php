@@ -19,7 +19,7 @@ class CampaignController extends Controller
         
         $validator = Validator::make($request->all(), [
             'user_id' => 'required|integer|exists:users,id',
-            'user_plans_id' => 'required|integer',
+            'plan_id' => 'required|integer',
             'name' => 'required|string|max:255',
             'cam_target' => 'required|string|max:255',
             'budget' => 'required|numeric|min:0',
@@ -43,7 +43,7 @@ class CampaignController extends Controller
         try {
             $campaignId = DB::table('campaigns')->insertGetId([
                'user_id' => $request->user_id,
-               'user_plans_id' => $request->user_plans_id,
+               'user_plans_id' => $request->plan_id,
                 'name' => $request->name,
                 'cam_target' => $request->cam_target,
                 'budget' => $request->budget,
@@ -170,7 +170,7 @@ class CampaignController extends Controller
             'budget' => 'sometimes|numeric|min:0',
             'objective' => 'sometimes|string|max:255',
             'details' => 'sometimes|string',
-            'status' => 'required|numeric|min:0',
+            'status' => 'numeric|min:0',
             'spent' => 'numeric|min:0',
             'lead_count' => 'numeric|min:0',
             'start_datetime' => 'sometimes|date',
@@ -248,11 +248,34 @@ class CampaignController extends Controller
                 ], 404);
             }
 
+            // First, get all media files associated with this campaign
+            $mediaFiles = DB::table('campaigns_media')
+                ->where('campaign_id', $id)
+                ->get();
+
+            // Delete all media files and their physical files
+            foreach ($mediaFiles as $media) {
+                // Get the file URL and check if physical file exists
+                if ($media->file_url) {
+                    $fileName = basename($media->file_url);
+                    $filePath = public_path('media/campaigns/' . $fileName);
+                    
+                    // Check if file exists and delete it
+                    if (file_exists($filePath)) {
+                        unlink($filePath);
+                    }
+                }
+            }
+
+            // Delete all campaigns_media entries for this campaign
+            DB::table('campaigns_media')->where('campaign_id', $id)->delete();
+
+            // Finally, delete the campaign
             DB::table('campaigns')->where('id', $id)->delete();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Campaign deleted successfully'
+                'message' => 'Campaign and all associated media files deleted successfully'
             ]);
 
         } catch (\Exception $e) {
@@ -587,9 +610,8 @@ class CampaignController extends Controller
 
             // Get the file URL and check if physical file exists
             if ($media->file_url) {
-                $basePath = 'Digital-Ads-back/public/media/campaigns/';
                 $fileName = basename($media->file_url);
-                $filePath = $basePath . $fileName;
+                $filePath = public_path('media/campaigns/' . $fileName);
                 
                 // Check if file exists and delete it
                 if (file_exists($filePath)) {
